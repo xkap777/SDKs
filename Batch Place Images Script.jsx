@@ -29,6 +29,28 @@ function placeImagesOnDocumentPages() {
     globalAutoGroup.margins = 0;
     var autoPlaceCheckbox = globalAutoGroup.add('checkbox', undefined, 'Auto Place & Center Images');
     autoPlaceCheckbox.value = false;
+
+    // --- Add global Keep Image Sizes Separate checkbox (only enabled when Auto Place is checked) ---
+    var globalKeepSeparateCheckbox = globalAutoGroup.add('checkbox', undefined, 'Keep Image Sizes Separate');
+    globalKeepSeparateCheckbox.value = false;
+    globalKeepSeparateCheckbox.enabled = false;
+
+    // --- Only enable globalKeepSeparateCheckbox when Auto Place is checked ---
+    autoPlaceCheckbox.onClick = function () {
+      setManualFieldsEnabled(!this.value);
+      globalKeepSeparateCheckbox.enabled = !!this.value;
+      if (!this.value) globalKeepSeparateCheckbox.value = false;
+    };
+    // --- Disable globalKeepSeparateCheckbox if Auto Place is unchecked at dialog start ---
+    globalKeepSeparateCheckbox.enabled = !!autoPlaceCheckbox.value;
+
+    // --- When globalKeepSeparateCheckbox is enabled, allow user to toggle it, otherwise always set to false ---
+    globalKeepSeparateCheckbox.onClick = function () {
+      if (!globalKeepSeparateCheckbox.enabled) {
+        globalKeepSeparateCheckbox.value = false;
+      }
+    };
+
     var autoRotateBestFitCheckbox = globalAutoGroup.add('checkbox', undefined, 'Auto Rotate for Best Fit (Auto Place only)');
     autoRotateBestFitCheckbox.value = false;
     autoRotateBestFitCheckbox.enabled = true; // Always enabled
@@ -258,6 +280,8 @@ function placeImagesOnDocumentPages() {
       // Grey out each global control independently
       globalAutoGroup.children[0].enabled = !anyGroupAutoPlace; // Auto Place & Center Images
       globalAutoGroup.children[1].enabled = !anyGroupAutoRotate; // Auto Rotate for Best Fit
+      // --- NEW: Disable manual fields if any group auto place is active ---
+      setManualFieldsEnabled(!anyGroupAutoPlace && !autoPlaceCheckbox.value);
     }
 
     // Add Group button logic
@@ -319,7 +343,7 @@ function placeImagesOnDocumentPages() {
       portraitRadio.value = true;
       landscapeRadio.value = false;
 
-      var keepSeparateCheckbox = controlsRow.add("checkbox", undefined, "Keep Pages Separate");
+      var keepSeparateCheckbox = controlsRow.add("checkbox", undefined, "Keep Image Sizes Separate");
       keepSeparateCheckbox.value = false;
 
       // --- Add checkboxes for Auto Place and Auto Rotate (independent) ---
@@ -330,9 +354,57 @@ function placeImagesOnDocumentPages() {
       autoPlaceCheckbox.value = false;
       autoRotateCheckbox.value = false;
 
-      // --- Enter/Reset buttons for manual settings ---
+      // --- Enter/Reset/Remove buttons for manual settings ---
       var enterBtn = controlsRow.add("button", undefined, "Enter");
       var resetBtn = controlsRow.add("button", undefined, "Reset");
+      var removeBtn = controlsRow.add("button", undefined, "Remove");
+
+      // --- Enter/Reset toggle logic ---
+      function doEnter() {
+        groupFrameSettings.frameWidth = parseFloat(frameWidthInput.text) || 0;
+        groupFrameSettings.frameHeight = parseFloat(frameHeightInput.text) || 0;
+        groupFrameSettings.rows = parseInt(rowsInput.text, 10) || 0;
+        groupFrameSettings.columns = parseInt(columnsInput.text, 10) || 0;
+        groupFrameSettings.horizontalGutter = parseFloat(horizontalGutterInput.text) || 0;
+        groupFrameSettings.verticalGutter = parseFloat(verticalGutterInput.text) || 0;
+        updateFrameSettingsSummary();
+        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
+        enterBtn.text = "Reset";
+        enterBtn.onClick = doReset;
+      }
+      function doReset() {
+        groupFrameSettings.frameWidth = 0;
+        groupFrameSettings.frameHeight = 0;
+        groupFrameSettings.rows = 0;
+        groupFrameSettings.columns = 0;
+        groupFrameSettings.horizontalGutter = 0;
+        groupFrameSettings.verticalGutter = 0;
+        updateFrameSettingsSummary();
+        keepSeparateCheckbox.value = false;
+        autoPlaceCheckbox.value = false;
+        autoRotateCheckbox.value = false;
+        portraitRadio.value = true;
+        landscapeRadio.value = false;
+        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
+        enterBtn.text = "Enter";
+        enterBtn.onClick = doEnter;
+      }
+      enterBtn.onClick = doEnter;
+      resetBtn.onClick = doReset;
+
+      // --- Remove group logic ---
+      removeBtn.onClick = function () {
+        groupPanel.parent.remove(groupPanel);
+        for (var i = 0; i < stepImageGroups.length; i++) {
+          if (stepImageGroups[i].groupPanel === groupPanel) {
+            stepImageGroups.splice(i, 1);
+            break;
+          }
+        }
+        dialog.layout.layout(true);
+        dialog.layout.resize();
+        updateGlobalAutoTabEnabled();
+      };
 
       // --- Prevent Enter button highlight after pressing Enter in manual fields ---
       var manualEditFields = [frameWidthInput, frameHeightInput, rowsInput, columnsInput, horizontalGutterInput, verticalGutterInput];
@@ -421,8 +493,8 @@ function placeImagesOnDocumentPages() {
         // Always enable group auto checkboxes and Enter/Reset if group is enabled
         autoPlaceCheckbox.enabled = enableGroupCheckbox.value;
         autoRotateCheckbox.enabled = enableGroupCheckbox.value;
-        enterBtn.enabled = enableGroupCheckbox.value && !autoPlaceCheckbox.value;
-        resetBtn.enabled = enableGroupCheckbox.value && !autoPlaceCheckbox.value;
+        enterBtn.enabled = enableGroupCheckbox.value; // Always enabled if group is enabled
+        resetBtn.enabled = enableGroupCheckbox.value; // Always enabled if group is enabled
       }
       autoPlaceCheckbox.onClick = function () {
         updateAutoModeUI();
@@ -441,8 +513,8 @@ function placeImagesOnDocumentPages() {
         // Always enable group auto checkboxes and Enter/Reset if group is enabled
         autoPlaceCheckbox.enabled = enabled;
         autoRotateCheckbox.enabled = enabled;
-        enterBtn.enabled = enabled && !autoPlaceCheckbox.value;
-        resetBtn.enabled = enabled && !autoPlaceCheckbox.value;
+        enterBtn.enabled = enabled; // Always enabled if group is enabled
+        resetBtn.enabled = enabled; // Always enabled if group is enabled
         // If disabling, also clear checkboxes and re-enable global
         if (!enabled) {
           autoPlaceCheckbox.value = false;
@@ -673,6 +745,7 @@ function placeImagesOnDocumentPages() {
     var bleedOffset = parseFloat(bleedOffsetInput.text);
 
     var autoPlaceAndCenter = autoPlaceCheckbox.value;
+    var globalKeepImagesSeparate = globalKeepSeparateCheckbox.value;
 
     var stepGroups = [];
     var groupImageFilesFiltered = [];
@@ -692,7 +765,7 @@ function placeImagesOnDocumentPages() {
       stepGroups.push({
         count: 1,
         rotation: parseInt(rotationDropdown.selection.text, 10) || 0,
-        keepSeparate: false
+        keepSeparate: globalKeepImagesSeparate // Use global keep separate in non-group mode
       });
       // Use a single image file dialog for non-group mode
       var files = File.openDialog("Select image files to place", "*.jpg;*.png;*.tif", true);
