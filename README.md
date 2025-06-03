@@ -1,0 +1,1 @@
+I created this for placing multiple images on a page in InDesign. It will apply it globally or as seperate groups and you can even specify how many copies of each image per group (max9). it will generate new pages as needed. This is a work in progress so any problems let me know.
