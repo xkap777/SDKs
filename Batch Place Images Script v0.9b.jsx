@@ -1,14 +1,14 @@
 #target indesign
 
 function placeImagesOnDocumentPages() {
+  // Ensure a document is open and get the active document
+  if (!app.documents.length) {
+    alert("No document is open. Please open a document and try again.");
+    return;
+  }
+  var doc = app.activeDocument;
+
   try {
-    if (app.documents.length === 0) {
-      alert("Please open a document before running this script.");
-      return;
-    }
-
-    var doc = app.activeDocument;
-
     // --- UI DIALOG SETUP ---
     var dialog = new Window("dialog", "Set Frame Layout");
     dialog.orientation = "column";
@@ -27,8 +27,8 @@ function placeImagesOnDocumentPages() {
     globalAutoGroup.orientation = 'row';
     globalAutoGroup.alignChildren = 'left';
     globalAutoGroup.margins = 0;
-    var autoPlaceCheckbox = globalAutoGroup.add('checkbox', undefined, 'Auto Place & Center Images');
-    autoPlaceCheckbox.value = false;
+    var globalAutoPlaceCheckbox = globalAutoGroup.add('checkbox', undefined, 'Auto Place & Center Images');
+    globalAutoPlaceCheckbox.value = false;
 
     // --- Add global Keep Image Sizes Separate checkbox (only enabled when Auto Place is checked) ---
     var globalKeepSeparateCheckbox = globalAutoGroup.add('checkbox', undefined, 'Keep Image Sizes Separate');
@@ -36,13 +36,15 @@ function placeImagesOnDocumentPages() {
     globalKeepSeparateCheckbox.enabled = false;
 
     // --- Only enable globalKeepSeparateCheckbox when Auto Place is checked ---
-    autoPlaceCheckbox.onClick = function () {
+    globalAutoPlaceCheckbox.onClick = function () {
+      // If checked, disable all manual fields
       setManualFieldsEnabled(!this.value);
       globalKeepSeparateCheckbox.enabled = !!this.value;
       if (!this.value) globalKeepSeparateCheckbox.value = false;
+      updateGlobalAutoTabEnabled();
     };
     // --- Disable globalKeepSeparateCheckbox if Auto Place is unchecked at dialog start ---
-    globalKeepSeparateCheckbox.enabled = !!autoPlaceCheckbox.value;
+    globalKeepSeparateCheckbox.enabled = !!globalAutoPlaceCheckbox.value;
 
     // --- When globalKeepSeparateCheckbox is enabled, allow user to toggle it, otherwise always set to false ---
     globalKeepSeparateCheckbox.onClick = function () {
@@ -55,7 +57,7 @@ function placeImagesOnDocumentPages() {
     autoRotateBestFitCheckbox.value = false;
     autoRotateBestFitCheckbox.enabled = true; // Always enabled
 
-    // Frame Dimensions
+    // Frame Dimensions (GLOBAL)
     var frameGroup = dialog.add("panel", undefined, "Frame Dimensions");
     frameGroup.orientation = "column";
     frameGroup.alignChildren = "left";
@@ -64,31 +66,31 @@ function placeImagesOnDocumentPages() {
     var frameRow1 = frameGroup.add("group");
     frameRow1.orientation = "row";
     frameRow1.add("statictext", undefined, "Frame Width (in):");
-    var frameWidthInput = frameRow1.add("edittext", undefined, "0");
-    frameWidthInput.characters = 5;
+    var globalFrameWidthInput = frameRow1.add("edittext", undefined, "0");
+    globalFrameWidthInput.characters = 5;
     frameRow1.add("statictext", undefined, "Frame Height (in):");
-    var frameHeightInput = frameRow1.add("edittext", undefined, "0");
-    frameHeightInput.characters = 5;
+    var globalFrameHeightInput = frameRow1.add("edittext", undefined, "0");
+    globalFrameHeightInput.characters = 5;
 
     var frameRow2 = frameGroup.add("group");
     frameRow2.orientation = "row";
     frameRow2.add("statictext", undefined, "Rows:");
-    var rowsInput = frameRow2.add("edittext", undefined, "0");
-    rowsInput.characters = 3;
+    var globalRowsInput = frameRow2.add("edittext", undefined, "0");
+    globalRowsInput.characters = 3;
     frameRow2.add("statictext", undefined, "Columns:");
-    var columnsInput = frameRow2.add("edittext", undefined, "0");
-    columnsInput.characters = 3;
+    var globalColumnsInput = frameRow2.add("edittext", undefined, "0");
+    globalColumnsInput.characters = 3;
 
     var frameRow3 = frameGroup.add("group");
     frameRow3.orientation = "row";
     frameRow3.add("statictext", undefined, "Horizontal Gutter (in):");
-    var horizontalGutterInput = frameRow3.add("edittext", undefined, "0");
-    horizontalGutterInput.characters = 4;
+    var globalHorizontalGutterInput = frameRow3.add("edittext", undefined, "0");
+    globalHorizontalGutterInput.characters = 4;
     frameRow3.add("statictext", undefined, "Vertical Gutter (in):");
-    var verticalGutterInput = frameRow3.add("edittext", undefined, "0");
-    verticalGutterInput.characters = 4;
+    var globalVerticalGutterInput = frameRow3.add("edittext", undefined, "0");
+    globalVerticalGutterInput.characters = 4;
 
-    // Frame Margins
+    // Frame Margins (GLOBAL)
     var frameMarginGroup = dialog.add("panel", undefined, "Frame Margins (for positioning the frames)");
     frameMarginGroup.orientation = "column";
     frameMarginGroup.alignChildren = "left";
@@ -102,44 +104,22 @@ function placeImagesOnDocumentPages() {
     var frameMarginRow1 = frameMarginGroup.add("group");
     frameMarginRow1.orientation = "row";
     frameMarginRow1.add("statictext", undefined, "Top (in):");
-    var frameTopMarginInput = frameMarginRow1.add("edittext", undefined, "0");
-    frameTopMarginInput.characters = 5;
+    var globalFrameTopMarginInput = frameMarginRow1.add("edittext", undefined, "0");
+    globalFrameTopMarginInput.characters = 5;
     frameMarginRow1.add("statictext", undefined, "Bottom (in):");
-    var frameBottomMarginInput = frameMarginRow1.add("edittext", undefined, "0");
-    frameBottomMarginInput.characters = 5;
+    var globalFrameBottomMarginInput = frameMarginRow1.add("edittext", undefined, "0");
+    globalFrameBottomMarginInput.characters = 5;
 
     var frameMarginRow2 = frameMarginGroup.add("group");
     frameMarginRow2.orientation = "row";
     frameMarginRow2.add("statictext", undefined, "Left (in):");
-    var frameLeftMarginInput = frameMarginRow2.add("edittext", undefined, "0");
-    frameLeftMarginInput.characters = 5;
+    var globalFrameLeftMarginInput = frameMarginRow2.add("edittext", undefined, "0");
+    globalFrameLeftMarginInput.characters = 5;
     frameMarginRow2.add("statictext", undefined, "Right (in):");
-    var frameRightMarginInput = frameMarginRow2.add("edittext", undefined, "0");
-    frameRightMarginInput.characters = 5;
+    var globalFrameRightMarginInput = frameMarginRow2.add("edittext", undefined, "0");
+    globalFrameRightMarginInput.characters = 5;
 
-    // --- Link Frame Margins Logic ---
-    function setAllFrameMargins(val) {
-      frameTopMarginInput.text = val;
-      frameBottomMarginInput.text = val;
-      frameLeftMarginInput.text = val;
-      frameRightMarginInput.text = val;
-    }
-    function syncFrameMargins(source) {
-      if (linkFrameMarginsCheckbox.value) {
-        setAllFrameMargins(source.text);
-      }
-    }
-    linkFrameMarginsCheckbox.onClick = function () {
-      if (linkFrameMarginsCheckbox.value) {
-        setAllFrameMargins(frameTopMarginInput.text);
-      }
-    };
-    frameTopMarginInput.onChanging = function () { syncFrameMargins(frameTopMarginInput); };
-    frameBottomMarginInput.onChanging = function () { syncFrameMargins(frameBottomMarginInput); };
-    frameLeftMarginInput.onChanging = function () { syncFrameMargins(frameLeftMarginInput); };
-    frameRightMarginInput.onChanging = function () { syncFrameMargins(frameRightMarginInput); };
-
-    // Page Margins
+    // Page Margins (GLOBAL)
     var pageMarginGroup = dialog.add("panel", undefined, "Page Margins (for adjusting margins)");
     pageMarginGroup.orientation = "column";
     pageMarginGroup.alignChildren = "left";
@@ -153,42 +133,20 @@ function placeImagesOnDocumentPages() {
     var pageMarginRow1 = pageMarginGroup.add("group");
     pageMarginRow1.orientation = "row";
     pageMarginRow1.add("statictext", undefined, "Top (in):");
-    var pageTopMarginInput = pageMarginRow1.add("edittext", undefined, "0");
-    pageTopMarginInput.characters = 5;
+    var globalPageTopMarginInput = pageMarginRow1.add("edittext", undefined, "0");
+    globalPageTopMarginInput.characters = 5;
     pageMarginRow1.add("statictext", undefined, "Bottom (in):");
-    var pageBottomMarginInput = pageMarginRow1.add("edittext", undefined, "0");
-    pageBottomMarginInput.characters = 5;
+    var globalPageBottomMarginInput = pageMarginRow1.add("edittext", undefined, "0");
+    globalPageBottomMarginInput.characters = 5;
 
     var pageMarginRow2 = pageMarginGroup.add("group");
     pageMarginRow2.orientation = "row";
     pageMarginRow2.add("statictext", undefined, "Left (in):");
-    var pageLeftMarginInput = pageMarginRow2.add("edittext", undefined, "0");
-    pageLeftMarginInput.characters = 5;
+    var globalPageLeftMarginInput = pageMarginRow2.add("edittext", undefined, "0");
+    globalPageLeftMarginInput.characters = 5;
     pageMarginRow2.add("statictext", undefined, "Right (in):");
-    var pageRightMarginInput = pageMarginRow2.add("edittext", undefined, "0");
-    pageRightMarginInput.characters = 5;
-
-    // --- Link Page Margins Logic ---
-    function setAllPageMargins(val) {
-      pageTopMarginInput.text = val;
-      pageBottomMarginInput.text = val;
-      pageLeftMarginInput.text = val;
-      pageRightMarginInput.text = val;
-    }
-    function syncPageMargins(source) {
-      if (linkPageMarginsCheckbox.value) {
-        setAllPageMargins(source.text);
-      }
-    }
-    linkPageMarginsCheckbox.onClick = function () {
-      if (linkPageMarginsCheckbox.value) {
-        setAllPageMargins(pageTopMarginInput.text);
-      }
-    };
-    pageTopMarginInput.onChanging = function () { syncPageMargins(pageTopMarginInput); };
-    pageBottomMarginInput.onChanging = function () { syncPageMargins(pageBottomMarginInput); };
-    pageLeftMarginInput.onChanging = function () { syncPageMargins(pageLeftMarginInput); };
-    pageRightMarginInput.onChanging = function () { syncPageMargins(pageRightMarginInput); };
+    var globalPageRightMarginInput = pageMarginRow2.add("edittext", undefined, "0");
+    globalPageRightMarginInput.characters = 5;
 
     // Fitting Options
     var fittingGroup = dialog.add("panel", undefined, "Fitting Options");
@@ -229,6 +187,13 @@ function placeImagesOnDocumentPages() {
     var enableStepGroupsCheckbox = stepImagesPanel.add("checkbox", undefined, "Enable Step Image Groups");
     enableStepGroupsCheckbox.value = false;
 
+    // Add global Keep Groups Separate checkbox
+    var globalKeepGroupsSeparateCheckbox = stepImagesPanel.add("checkbox", undefined, "Keep Groups Separate");
+    globalKeepGroupsSeparateCheckbox.value = false;
+    globalKeepGroupsSeparateCheckbox.enabled = true;
+    // Hide unless step groups are enabled
+    globalKeepGroupsSeparateCheckbox.visible = false;
+
     // Container for dynamic group panels
     var groupPanelContainer = stepImagesPanel.add("group");
     groupPanelContainer.orientation = "column";
@@ -240,11 +205,13 @@ function placeImagesOnDocumentPages() {
 
     var stepImageGroups = [];
     var maxStepGroups = 9;
+    var groupImageFiles = [];
 
     // Show/hide group controls dynamically
     enableStepGroupsCheckbox.onClick = function () {
       groupPanelContainer.visible = this.value;
       addGroupBtn.visible = this.value;
+      globalKeepGroupsSeparateCheckbox.visible = this.value;
       // Hide all group panels if disabling
       if (!this.value) {
         for (var i = 0; i < stepImageGroups.length; i++) {
@@ -262,33 +229,35 @@ function placeImagesOnDocumentPages() {
       dialog.layout.layout(true);
       dialog.layout.resize();
       updateGlobalAutoTabEnabled();
+      updateManualFieldsState();
     };
 
-    // --- Helper: Grey out global auto tab checkboxes if any group uses auto features ---
+    // --- Helper: Disable global auto tab checkboxes if any group exists ---
     function updateGlobalAutoTabEnabled() {
-      var anyGroupAutoPlace = false;
-      var anyGroupAutoRotate = false;
-      for (var i = 0; i < stepImageGroups.length; i++) {
-        var group = stepImageGroups[i];
-        if (group.enableCheckbox.value && group.autoPlaceCheckbox.value) {
-          anyGroupAutoPlace = true;
-        }
-        if (group.enableCheckbox.value && group.autoRotateCheckbox.value) {
-          anyGroupAutoRotate = true;
-        }
+      var anyGroupExists = stepImageGroups.length > 0;
+      if (anyGroupExists) {
+        globalAutoPlaceCheckbox.enabled = false;
+        globalAutoPlaceCheckbox.value = false;
+        globalKeepSeparateCheckbox.enabled = false;
+        globalKeepSeparateCheckbox.value = false;
+      } else {
+        globalAutoPlaceCheckbox.enabled = true;
+        globalKeepSeparateCheckbox.enabled = globalAutoPlaceCheckbox.value;
       }
-      // Grey out each global control independently
-      globalAutoGroup.children[0].enabled = !anyGroupAutoPlace; // Auto Place & Center Images
-      globalAutoGroup.children[1].enabled = !anyGroupAutoRotate; // Auto Rotate for Best Fit
-      // --- NEW: Disable manual fields if any group auto place is active ---
-      setManualFieldsEnabled(!anyGroupAutoPlace && !autoPlaceCheckbox.value);
     }
+
+    // --- Ensure manual fields are updated on globalAutoPlaceCheckbox change even if groups are not enabled ---
+    globalAutoPlaceCheckbox.onClick = function () {
+      updateGlobalAutoTabEnabled();
+      globalKeepSeparateCheckbox.enabled = !!this.value && globalAutoPlaceCheckbox.enabled;
+      if (!this.value) globalKeepSeparateCheckbox.value = false;
+      updateManualFieldsState(); // Ensure manual fields are updated only via centralized logic
+    };
 
     // Add Group button logic
     addGroupBtn.onClick = function () {
       if (stepImageGroups.length >= maxStepGroups) return;
       var g = stepImageGroups.length;
-      // Use a generic panel title, not 'Group N'
       var groupPanel = groupPanelContainer.add("panel", undefined, "Step Group");
       groupPanel.orientation = "column";
       groupPanel.alignChildren = "left";
@@ -332,6 +301,7 @@ function placeImagesOnDocumentPages() {
 
       var enableGroupCheckbox = controlsRow.add("checkbox", undefined, "Enable");
       enableGroupCheckbox.value = false;
+      enableGroupCheckbox.enabled = true; // Ensure checkbox is enabled for new group
 
       controlsRow.add("statictext", undefined, "Times per Image:");
       var countInput = controlsRow.add("edittext", undefined, "1");
@@ -354,43 +324,23 @@ function placeImagesOnDocumentPages() {
       autoPlaceCheckbox.value = false;
       autoRotateCheckbox.value = false;
 
-      // --- Enter/Reset/Remove buttons for manual settings ---
-      var enterBtn = controlsRow.add("button", undefined, "Enter");
+      // --- Apply button for manual entry ---
+      var applyBtn = controlsRow.add("button", undefined, "Apply");
+      applyBtn.enabled = true;
+
+      // --- Reset/Remove buttons for manual settings ---
       var resetBtn = controlsRow.add("button", undefined, "Reset");
       var removeBtn = controlsRow.add("button", undefined, "Remove");
 
-      // --- Enter/Reset toggle logic ---
-      function doEnter() {
-        groupFrameSettings.frameWidth = parseFloat(frameWidthInput.text) || 0;
-        groupFrameSettings.frameHeight = parseFloat(frameHeightInput.text) || 0;
-        groupFrameSettings.rows = parseInt(rowsInput.text, 10) || 0;
-        groupFrameSettings.columns = parseInt(columnsInput.text, 10) || 0;
-        groupFrameSettings.horizontalGutter = parseFloat(horizontalGutterInput.text) || 0;
-        groupFrameSettings.verticalGutter = parseFloat(verticalGutterInput.text) || 0;
-        updateFrameSettingsSummary();
-        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
-        enterBtn.text = "Reset";
-        enterBtn.onClick = doReset;
-      }
-      function doReset() {
-        groupFrameSettings.frameWidth = 0;
-        groupFrameSettings.frameHeight = 0;
-        groupFrameSettings.rows = 0;
-        groupFrameSettings.columns = 0;
-        groupFrameSettings.horizontalGutter = 0;
-        groupFrameSettings.verticalGutter = 0;
-        updateFrameSettingsSummary();
-        keepSeparateCheckbox.value = false;
-        autoPlaceCheckbox.value = false;
-        autoRotateCheckbox.value = false;
-        portraitRadio.value = true;
-        landscapeRadio.value = false;
-        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
-        enterBtn.text = "Enter";
-        enterBtn.onClick = doEnter;
-      }
-      enterBtn.onClick = doEnter;
-      resetBtn.onClick = doReset;
+      // --- Disable all group controls except Enable by default ---
+      countInput.enabled = false;
+      keepSeparateCheckbox.enabled = false;
+      autoPlaceCheckbox.enabled = false;
+      autoRotateCheckbox.enabled = false;
+      portraitRadio.enabled = false;
+      landscapeRadio.enabled = false;
+      applyBtn.enabled = false;
+      resetBtn.enabled = false;
 
       // --- Remove group logic ---
       removeBtn.onClick = function () {
@@ -401,20 +351,12 @@ function placeImagesOnDocumentPages() {
             break;
           }
         }
+        groupImageFiles[g] = [];
         dialog.layout.layout(true);
         dialog.layout.resize();
         updateGlobalAutoTabEnabled();
+        updateManualFieldsState();
       };
-
-      // --- Prevent Enter button highlight after pressing Enter in manual fields ---
-      var manualEditFields = [frameWidthInput, frameHeightInput, rowsInput, columnsInput, horizontalGutterInput, verticalGutterInput];
-      for (var i = 0; i < manualEditFields.length; i++) {
-        (function(field) {
-          field.onEnterKey = function() {
-            if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
-          };
-        })(manualEditFields[i]);
-      }
 
       // Store manual settings for this group (these are the group's own values, not the global/manual fields)
       var groupFrameSettings = {
@@ -430,7 +372,7 @@ function placeImagesOnDocumentPages() {
           " R: " + fs.rows + " C: " + fs.columns +
           " HG: " + fs.horizontalGutter + " VG: " + fs.verticalGutter;
       }
-      // Always show summary, only update on Enter/Reset
+      // Always show summary, update on any field change
       function updateFrameSettingsSummary() {
         frameSettingsText.text = formatFrameSettings(groupFrameSettings);
         try { frameSettingsText.justify = 'right'; } catch (e) {}
@@ -438,19 +380,38 @@ function placeImagesOnDocumentPages() {
         groupHeaderRow.layout.layout(true);
         if (groupPanel && groupPanel.layout) groupPanel.layout.layout(true);
       }
-      updateFrameSettingsSummary(); // Show zeros on creation
-      // Only update group values and summary on Enter
-      enterBtn.onClick = function () {
-        groupFrameSettings.frameWidth = parseFloat(frameWidthInput.text) || 0;
-        groupFrameSettings.frameHeight = parseFloat(frameHeightInput.text) || 0;
-        groupFrameSettings.rows = parseInt(rowsInput.text, 10) || 0;
-        groupFrameSettings.columns = parseInt(columnsInput.text, 10) || 0;
-        groupFrameSettings.horizontalGutter = parseFloat(horizontalGutterInput.text) || 0;
-        groupFrameSettings.verticalGutter = parseFloat(verticalGutterInput.text) || 0;
+      // Update groupFrameSettings live as user edits fields
+      function updateGroupFrameSettings() {
+        groupFrameSettings.frameWidth = parseFloat(globalFrameWidthInput.text) || 0;
+        groupFrameSettings.frameHeight = parseFloat(globalFrameHeightInput.text) || 0;
+        groupFrameSettings.rows = parseInt(globalRowsInput.text, 10) || 0;
+        groupFrameSettings.columns = parseInt(globalColumnsInput.text, 10) || 0;
+        groupFrameSettings.horizontalGutter = parseFloat(globalHorizontalGutterInput.text) || 0;
+        groupFrameSettings.verticalGutter = parseFloat(globalVerticalGutterInput.text) || 0;
         updateFrameSettingsSummary();
-        // Remove focus from button to prevent highlight by setting focus to group label
-        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
+      }
+      // Attach live update to relevant fields
+      globalFrameWidthInput.onChanging = updateGroupFrameSettings;
+      globalFrameHeightInput.onChanging = updateGroupFrameSettings;
+      globalRowsInput.onChanging = updateGroupFrameSettings;
+      globalColumnsInput.onChanging = updateGroupFrameSettings;
+      globalHorizontalGutterInput.onChanging = updateGroupFrameSettings;
+      globalVerticalGutterInput.onChanging = updateGroupFrameSettings;
+
+      // --- Apply button logic ---
+      applyBtn.onClick = function () {
+        groupFrameSettings.frameWidth = parseFloat(globalFrameWidthInput.text) || 0;
+        groupFrameSettings.frameHeight = parseFloat(globalFrameHeightInput.text) || 0;
+        groupFrameSettings.rows = parseInt(globalRowsInput.text, 10) || 0;
+        groupFrameSettings.columns = parseInt(globalColumnsInput.text, 10) || 0;
+        groupFrameSettings.horizontalGutter = parseFloat(globalHorizontalGutterInput.text) || 0;
+        groupFrameSettings.verticalGutter = parseFloat(globalVerticalGutterInput.text) || 0;
+        updateFrameSettingsSummary();
+        applyBtn.text = "Applied";
+        $.sleep(300);
+        applyBtn.text = "Apply";
       };
+
       // Only reset group values and summary on Reset
       resetBtn.onClick = function () {
         groupFrameSettings.frameWidth = 0;
@@ -461,24 +422,22 @@ function placeImagesOnDocumentPages() {
         groupFrameSettings.verticalGutter = 0;
         updateFrameSettingsSummary();
         // Reset all checkboxes and radios in this group to default, except Enable
-        // enableGroupCheckbox.value = false; // Do NOT reset Enable
         keepSeparateCheckbox.value = false;
         autoPlaceCheckbox.value = false;
         autoRotateCheckbox.value = false;
         portraitRadio.value = true;
         landscapeRadio.value = false;
-        // Remove focus from button to prevent highlight by setting focus to group label
-        if (groupLabel && groupLabel.active !== undefined) groupLabel.active = true;
+        applyBtn.enabled = true;
+        countInput.enabled = true;
+        portraitRadio.enabled = true;
+        landscapeRadio.enabled = true;
+        globalHorizontalGutterInput.enabled = true;
+        globalVerticalGutterInput.enabled = true;
+        globalFrameWidthInput.enabled = true;
+        globalFrameHeightInput.enabled = true;
+        globalRowsInput.enabled = true;
+        globalColumnsInput.enabled = true;
       };
-
-      countInput.enabled = false;
-      portraitRadio.enabled = false;
-      landscapeRadio.enabled = false;
-      keepSeparateCheckbox.enabled = false;
-      enterBtn.enabled = false;
-      resetBtn.enabled = false;
-      autoPlaceCheckbox.enabled = false;
-      autoRotateCheckbox.enabled = false;
 
       // --- Checkbox logic for auto place/auto rotate ---
       function updateAutoModeUI() {
@@ -486,62 +445,73 @@ function placeImagesOnDocumentPages() {
         if (autoRotateCheckbox.value) {
           portraitRadio.enabled = false;
           landscapeRadio.enabled = false;
+          // Disable global auto rotate if any group auto rotate is checked
+          autoRotateBestFitCheckbox.value = false;
+          autoRotateBestFitCheckbox.enabled = false;
         } else {
-          portraitRadio.enabled = enableGroupCheckbox.value && !autoRotateBestFitCheckbox.value;
-          landscapeRadio.enabled = enableGroupCheckbox.value && !autoRotateBestFitCheckbox.value;
+          portraitRadio.enabled = enableGroupCheckbox.value && !autoRotateBestFitCheckbox.value && !autoPlaceCheckbox.value;
+          landscapeRadio.enabled = enableGroupCheckbox.value && !autoRotateBestFitCheckbox.value && !autoPlaceCheckbox.value;
+          // Re-enable global auto rotate if no group auto rotate is checked
+          var anyGroupAutoRotate = false;
+          for (var i = 0; i < stepImageGroups.length; i++) {
+            if (stepImageGroups[i].enableCheckbox.value && stepImageGroups[i].autoRotateCheckbox.value) {
+              anyGroupAutoRotate = true;
+              break;
+            }
+          }
+          autoRotateBestFitCheckbox.enabled = !anyGroupAutoRotate;
         }
-        // Always enable group auto checkboxes and Enter/Reset if group is enabled
+        // Always enable group auto checkboxes and Reset if group is enabled
         autoPlaceCheckbox.enabled = enableGroupCheckbox.value;
         autoRotateCheckbox.enabled = enableGroupCheckbox.value;
-        enterBtn.enabled = enableGroupCheckbox.value; // Always enabled if group is enabled
         resetBtn.enabled = enableGroupCheckbox.value; // Always enabled if group is enabled
+        // Manual fields enable/disable is now always handled by updateManualFieldsState()
       }
+
+      // Ensure all group autoPlace/autoRotate checkboxes call updateManualFieldsState
       autoPlaceCheckbox.onClick = function () {
         updateAutoModeUI();
         updateGlobalAutoTabEnabled();
+        updateManualFieldsState();
       };
       autoRotateCheckbox.onClick = function () {
         updateAutoModeUI();
         updateGlobalAutoTabEnabled();
+        updateManualFieldsState();
       };
-
       enableGroupCheckbox.onClick = function () {
         var enabled = this.value;
-        var rotationEnabled = enabled && !autoRotateBestFitCheckbox.value;
-        countInput.enabled = enabled;
-        keepSeparateCheckbox.enabled = enabled;
-        // Always enable group auto checkboxes and Enter/Reset if group is enabled
-        autoPlaceCheckbox.enabled = enabled;
-        autoRotateCheckbox.enabled = enabled;
-        enterBtn.enabled = enabled; // Always enabled if group is enabled
-        resetBtn.enabled = enabled; // Always enabled if group is enabled
-        // If disabling, also clear checkboxes and re-enable global
-        if (!enabled) {
-          autoPlaceCheckbox.value = false;
-          autoRotateCheckbox.value = false;
-          portraitRadio.enabled = false;
-          landscapeRadio.enabled = false;
-        } else {
-          updateAutoModeUI();
-        }
-        updateGlobalAutoTabEnabled();
-      };
-
-      // --- Helper to update global auto place controls based on group settings ---
-      function updateGlobalAutoPlaceDisable() {
-        var anyGroupAutoPlace = false;
+        // Dynamically determine the group index for this groupPanel
+        var groupIdx = -1;
         for (var i = 0; i < stepImageGroups.length; i++) {
-          if (stepImageGroups[i].enableCheckbox.value && stepImageGroups[i].autoPlaceCheckbox.value) {
-            anyGroupAutoPlace = true;
+          if (stepImageGroups[i].groupPanel === groupPanel) {
+            groupIdx = i;
             break;
           }
         }
-        // Disable global auto place and manual fields if any group is auto place
-        autoPlaceCheckbox.enabled = !anyGroupAutoPlace;
-        setManualFieldsEnabled(!autoPlaceCheckbox.value && !anyGroupAutoPlace);
-        setAllRotationControlsEnabled(!autoRotateBestFitCheckbox.value && !anyGroupAutoPlace);
-      }
-
+        // Enable/disable all group controls except Enable
+        countInput.enabled = enabled;
+        keepSeparateCheckbox.enabled = enabled;
+        autoPlaceCheckbox.enabled = enabled;
+        autoRotateCheckbox.enabled = enabled;
+        portraitRadio.enabled = enabled;
+        landscapeRadio.enabled = enabled;
+        applyBtn.enabled = enabled;
+        resetBtn.enabled = enabled;
+        var rotationEnabled = enabled && !autoRotateBestFitCheckbox.value;
+        if (enabled) {
+          groupPanel.text = "Step Group";
+        } else {
+          groupImageFiles[groupIdx] = [];
+          groupPanel.text = "Step Group";
+          autoPlaceCheckbox.value = false;
+          autoRotateCheckbox.value = false;
+        }
+        updateAutoModeUI();
+        updateGlobalAutoTabEnabled();
+        updateManualFieldsState(); // Always call centralized logic
+      };
+      // Add the group to the stepImageGroups array so it is tracked and interactive
       stepImageGroups.push({
         groupPanel: groupPanel,
         enableCheckbox: enableGroupCheckbox,
@@ -549,46 +519,14 @@ function placeImagesOnDocumentPages() {
         portraitRadio: portraitRadio,
         landscapeRadio: landscapeRadio,
         keepSeparateCheckbox: keepSeparateCheckbox,
-        frameSettingsText: frameSettingsText,
-        enterBtn: enterBtn,
-        resetBtn: resetBtn,
-        groupFrameSettings: groupFrameSettings,
         autoPlaceCheckbox: autoPlaceCheckbox,
         autoRotateCheckbox: autoRotateCheckbox
       });
-      // Attach updateGlobalAutoTabEnabled to all relevant group controls:
-      autoPlaceCheckbox.onClick = function () {
-        updateAutoModeUI();
-        updateGlobalAutoTabEnabled();
-      };
-      autoRotateCheckbox.onClick = function () {
-        updateAutoModeUI();
-        updateGlobalAutoTabEnabled();
-      };
-      enableGroupCheckbox.onClick = function () {
-        var enabled = this.value;
-        var rotationEnabled = enabled && !autoRotateBestFitCheckbox.value;
-        countInput.enabled = enabled;
-        keepSeparateCheckbox.enabled = enabled;
-        var manualEnabled = enabled && !autoPlaceCheckbox.value;
-        enterBtn.enabled = manualEnabled;
-        resetBtn.enabled = manualEnabled;
-        autoPlaceCheckbox.enabled = enabled;
-        autoRotateCheckbox.enabled = enabled;
-        if (!enabled) {
-          autoPlaceCheckbox.value = false;
-          autoRotateCheckbox.value = false;
-          portraitRadio.enabled = false;
-          landscapeRadio.enabled = false;
-        } else {
-          updateAutoModeUI();
-        }
-        updateGlobalAutoTabEnabled();
-      };
       groupPanel.visible = true;
       dialog.layout.layout(true);
       dialog.layout.resize();
       updateGlobalAutoTabEnabled();
+      updateManualFieldsState();
     };
 
     // Crop Marks Panel
@@ -635,34 +573,74 @@ function placeImagesOnDocumentPages() {
     var cropMarksRangeAll = cropMarksRangeGroup.add("radiobutton", undefined, "Entire Selection");
     cropMarksRangeEach.value = true;
 
+    // --- Centralized manual fields enable/disable logic ---
+    function updateManualFieldsState() {
+      var anyGroupExists = stepImageGroups && stepImageGroups.length > 0;
+      var manualEnabled = true;
+      if (anyGroupExists) {
+        // Disable global auto options
+        globalAutoPlaceCheckbox.enabled = false;
+        globalAutoPlaceCheckbox.value = false;
+        globalKeepSeparateCheckbox.enabled = false;
+        globalKeepSeparateCheckbox.value = false;
+        // Manual fields are enabled unless any group has autoPlace or autoRotate checked
+        for (var i = 0; i < stepImageGroups.length; i++) {
+          var group = stepImageGroups[i];
+          if (group.enableCheckbox.value && (group.autoPlaceCheckbox.value || group.autoRotateCheckbox.value)) {
+            manualEnabled = false;
+            break;
+          }
+        }
+      } else {
+        // No groups: global auto options enabled
+        globalAutoPlaceCheckbox.enabled = true;
+        globalKeepSeparateCheckbox.enabled = globalAutoPlaceCheckbox.value;
+        // Manual fields disabled if global autoPlace or autoRotate is checked
+        manualEnabled = !(globalAutoPlaceCheckbox.value || autoRotateBestFitCheckbox.value);
+      }
+      setManualFieldsEnabled(manualEnabled);
+    }
+
     function setManualFieldsEnabled(enabled) {
+      // Only affect global/manual fields, not group fields
       frameGroup.enabled = enabled;
       frameMarginGroup.enabled = enabled;
       pageMarginGroup.enabled = enabled;
       fittingGroup.enabled = enabled;
+      enableFittingCheckbox.enabled = enabled;
+      fittingDropdown.enabled = enabled && enableFittingCheckbox.value;
       rotationGroup.enabled = enabled;
-    }
-
-    // --- Helper: Enable/disable all rotation controls ---
-    function setAllRotationControlsEnabled(enabled) {
       rotationDropdown.enabled = enabled;
-      for (var g = 0; g < stepImageGroups.length; g++) {
-        // Only enable portrait/landscape if group is enabled and not auto rotate
-        var group = stepImageGroups[g];
-        var groupEnabled = group.enableCheckbox.value;
-        var groupAutoRotate = group.autoRotateCheckbox && group.autoRotateCheckbox.value;
-        group.portraitRadio.enabled = enabled && groupEnabled && !groupAutoRotate;
-        group.landscapeRadio.enabled = enabled && groupEnabled && !groupAutoRotate;
+      // All global input fields
+      globalFrameWidthInput.enabled = enabled;
+      globalFrameHeightInput.enabled = enabled;
+      globalRowsInput.enabled = enabled;
+      globalColumnsInput.enabled = enabled;
+      globalHorizontalGutterInput.enabled = enabled;
+      globalVerticalGutterInput.enabled = enabled;
+      globalFrameTopMarginInput.enabled = enabled;
+      globalFrameBottomMarginInput.enabled = enabled;
+      globalFrameLeftMarginInput.enabled = enabled;
+      globalFrameRightMarginInput.enabled = enabled;
+      globalPageTopMarginInput.enabled = enabled;
+      globalPageBottomMarginInput.enabled = enabled;
+      globalPageLeftMarginInput.enabled = enabled;
+      globalPageRightMarginInput.enabled = enabled;
+      // Force UI update
+      if (dialog && dialog.layout) {
+        dialog.layout.layout(true);
+        dialog.layout.resize();
       }
     }
 
-    // --- Auto Rotate disables all rotation controls ---
-    autoRotateBestFitCheckbox.onClick = function () {
-      setAllRotationControlsEnabled(!this.value);
-      this.value = !!this.value;
-    };
-    // Initial state
-    setAllRotationControlsEnabled(!autoRotateBestFitCheckbox.value);
+    // --- Ensure manual fields and global auto options are updated on relevant changes ---
+    globalAutoPlaceCheckbox.onClick = function () { updateManualFieldsState(); };
+    autoRotateBestFitCheckbox.onClick = function () { updateManualFieldsState(); };
+    // Removed duplicate/empty addGroupBtn.onClick assignment here
+    // In each group, after autoPlaceCheckbox or autoRotateCheckbox is toggled:
+    // autoPlaceCheckbox.onClick = function () { updateManualFieldsState(); };
+    // autoRotateCheckbox.onClick = function () { updateManualFieldsState(); };
+    // ...existing code...
 
     var buttonGroup = dialog.add("group");
     buttonGroup.alignment = "center";
@@ -676,27 +654,40 @@ function placeImagesOnDocumentPages() {
     };
 
     okButton.onClick = function () {
+      // --- Validation: skip manual field validation if either Auto Place or Auto Rotate is checked ---
+      var skipManualValidation = false;
+      if (enableStepGroupsCheckbox.value) {
+        for (var g = 0; g < stepImageGroups.length; g++) {
+          var group = stepImageGroups[g];
+          if (group.enableCheckbox.value && (group.autoPlaceCheckbox.value || group.autoRotateCheckbox.value)) {
+            skipManualValidation = true;
+            break;
+          }
+        }
+      } else {
+        skipManualValidation = globalAutoPlaceCheckbox.value || autoRotateBestFitCheckbox.value;
+      }
       if (
-        (!autoPlaceCheckbox.value && (
-          isNaN(frameWidthInput.text) ||
-          isNaN(frameHeightInput.text) ||
-          isNaN(rowsInput.text) ||
-          isNaN(columnsInput.text) ||
-          frameWidthInput.text <= 0 ||
-          frameHeightInput.text <= 0 ||
-          rowsInput.text <= 0 ||
-          columnsInput.text <= 0
+        (!skipManualValidation && (
+          isNaN(globalFrameWidthInput.text) ||
+          isNaN(globalFrameHeightInput.text) ||
+          isNaN(globalRowsInput.text) ||
+          isNaN(globalColumnsInput.text) ||
+          globalFrameWidthInput.text <= 0 ||
+          globalFrameHeightInput.text <= 0 ||
+          globalRowsInput.text <= 0 ||
+          globalColumnsInput.text <= 0
         )) ||
-        isNaN(horizontalGutterInput.text) ||
-        isNaN(verticalGutterInput.text) ||
-        isNaN(frameTopMarginInput.text) ||
-        isNaN(frameBottomMarginInput.text) ||
-        isNaN(frameLeftMarginInput.text) ||
-        isNaN(frameRightMarginInput.text) ||
-        isNaN(pageTopMarginInput.text) ||
-        isNaN(pageBottomMarginInput.text) ||
-        isNaN(pageLeftMarginInput.text) ||
-        isNaN(pageRightMarginInput.text) ||
+        isNaN(globalHorizontalGutterInput.text) ||
+        isNaN(globalVerticalGutterInput.text) ||
+        isNaN(globalFrameTopMarginInput.text) ||
+        isNaN(globalFrameBottomMarginInput.text) ||
+        isNaN(globalFrameLeftMarginInput.text) ||
+        isNaN(globalFrameRightMarginInput.text) ||
+        isNaN(globalPageTopMarginInput.text) ||
+        isNaN(globalPageBottomMarginInput.text) ||
+        isNaN(globalPageLeftMarginInput.text) ||
+        isNaN(globalPageRightMarginInput.text) ||
         (enableCropMarks.value && (
           isNaN(cropLengthInput.text) ||
           isNaN(cropOffsetInput.text) ||
@@ -707,6 +698,24 @@ function placeImagesOnDocumentPages() {
         alert("Please enter valid numeric values.");
         return;
       }
+      // --- After validation, prompt for image files for each enabled group ---
+      if (enableStepGroupsCheckbox.value) {
+        for (var g = 0; g < stepImageGroups.length; g++) {
+          var group = stepImageGroups[g];
+          if (group.enableCheckbox.value) {
+            var files = File.openDialog("Select image files for Group " + (g+1), "*.jpg;*.png;*.tif", true);
+            if (!files || files.length === 0) {
+              alert("No images selected for Group " + (g+1) + ". Operation canceled.");
+              return;
+            }
+            groupImageFiles[g] = files;
+            group.groupPanel.text = "Step Group (" + files.length + " images)";
+          } else {
+            groupImageFiles[g] = [];
+            group.groupPanel.text = "Step Group";
+          }
+        }
+      }
       dialog.close(1);
     };
 
@@ -716,22 +725,22 @@ function placeImagesOnDocumentPages() {
     }
 
     // --- Retrieve user input ---
-    var frameWidth = parseFloat(frameWidthInput.text);
-    var frameHeight = parseFloat(frameHeightInput.text);
-    var rows = parseInt(rowsInput.text, 10);
-    var columns = parseInt(columnsInput.text, 10);
-    var horizontalGutter = parseFloat(horizontalGutterInput.text);
-    var verticalGutter = parseFloat(verticalGutterInput.text);
+    var frameWidth = parseFloat(globalFrameWidthInput.text);
+    var frameHeight = parseFloat(globalFrameHeightInput.text);
+    var rows = parseInt(globalRowsInput.text, 10);
+    var columns = parseInt(globalColumnsInput.text, 10);
+    var horizontalGutter = parseFloat(globalHorizontalGutterInput.text);
+    var verticalGutter = parseFloat(globalVerticalGutterInput.text);
 
-    var frameTopMargin = parseFloat(frameTopMarginInput.text);
-    var frameBottomMargin = parseFloat(frameBottomMarginInput.text);
-    var frameLeftMargin = parseFloat(frameLeftMarginInput.text);
-    var frameRightMargin = parseFloat(frameRightMarginInput.text);
+    var frameTopMargin = parseFloat(globalFrameTopMarginInput.text);
+    var frameBottomMargin = parseFloat(globalFrameBottomMarginInput.text);
+    var frameLeftMargin = parseFloat(globalFrameLeftMarginInput.text);
+    var frameRightMargin = parseFloat(globalFrameRightMarginInput.text);
 
-    var pageTopMargin = parseFloat(pageTopMarginInput.text);
-    var pageBottomMargin = parseFloat(pageBottomMarginInput.text);
-    var pageLeftMargin = parseFloat(pageLeftMarginInput.text);
-    var pageRightMargin = parseFloat(pageRightMarginInput.text);
+    var pageTopMargin = parseFloat(globalPageTopMarginInput.text);
+    var pageBottomMargin = parseFloat(globalPageBottomMarginInput.text);
+    var pageLeftMargin = parseFloat(globalPageLeftMarginInput.text);
+    var pageRightMargin = parseFloat(globalPageRightMarginInput.text);
 
     var enableFitting = enableFittingCheckbox.value;
     var fittingOption = fittingDropdown.selection.text;
@@ -744,7 +753,7 @@ function placeImagesOnDocumentPages() {
     var cropMarkRange = cropMarksRangeEach.value ? 0 : 1;
     var bleedOffset = parseFloat(bleedOffsetInput.text);
 
-    var autoPlaceAndCenter = autoPlaceCheckbox.value;
+    var autoPlaceAndCenter = globalAutoPlaceCheckbox.value;
     var globalKeepImagesSeparate = globalKeepSeparateCheckbox.value;
 
     var stepGroups = [];
@@ -778,21 +787,119 @@ function placeImagesOnDocumentPages() {
 
     // --- Placement plan for groups ---
     var placementPlan = [];
-    for (var g = 0; g < stepGroups.length; g++) {
-      for (var i = 0; i < groupImageFilesFiltered[g].length; i++) {
-        for (var c = 0; c < stepGroups[g].count; c++) {
+    if (globalKeepGroupsSeparateCheckbox.value) {
+      // Each group is processed independently
+      for (var g = 0; g < stepGroups.length; g++) {
+        for (var i = 0; i < groupImageFilesFiltered[g].length; i++) {
+          for (var c = 0; c < stepGroups[g].count; c++) {
+            placementPlan.push({
+              file: groupImageFilesFiltered[g][i],
+              rotation: stepGroups[g].rotation,
+              groupIdx: g,
+              keepSeparate: true, // force group separation
+              keepImageSizes: stepGroups[g].keepSeparate
+            });
+          }
+        }
+      }
+    } else {
+      // Pool images from groups with keepSeparate unchecked
+      var pooledImages = [];
+      var pooledRotations = [];
+      var pooledGroupIdxs = [];
+      for (var g = 0; g < stepGroups.length; g++) {
+        if (stepGroups[g].keepSeparate) {
+          // Process this group independently
+          for (var i = 0; i < groupImageFilesFiltered[g].length; i++) {
+            for (var c = 0; c < stepGroups[g].count; c++) {
+              placementPlan.push({
+                file: groupImageFilesFiltered[g][i],
+                rotation: stepGroups[g].rotation,
+                groupIdx: g,
+                keepSeparate: true,
+                keepImageSizes: true
+              });
+            }
+          }
+        } else {
+          // Pool these images for joint placement
+          for (var i = 0; i < groupImageFilesFiltered[g].length; i++) {
+            for (var c = 0; c < stepGroups[g].count; c++) {
+              pooledImages.push(groupImageFilesFiltered[g][i]);
+              pooledRotations.push(stepGroups[g].rotation);
+              pooledGroupIdxs.push(g);
+            }
+          }
+        }
+      }
+      // Add pooled images as a single pseudo-group
+      if (pooledImages.length > 0) {
+        for (var i = 0; i < pooledImages.length; i++) {
           placementPlan.push({
-            file: groupImageFilesFiltered[g][i],
-            rotation: stepGroups[g].rotation,
-            groupIdx: g,
-            keepSeparate: stepGroups[g].keepSeparate
+            file: pooledImages[i],
+            rotation: pooledRotations[i],
+            groupIdx: pooledGroupIdxs[i],
+            keepSeparate: false,
+            keepImageSizes: false
           });
         }
       }
     }
 
+    // --- DEBUG: Check for empty placement plan ---
+    if (placementPlan.length === 0) {
+      alert('No images to place. Please check your group settings and image selections.');
+      return;
+    }
+
     // --- AUTO PLACE & CENTER LOGIC ---
-    if (autoPlaceAndCenter) {
+    var shouldAutoPlace = false;
+    if (enableStepGroupsCheckbox.value) {
+      // If any enabled group has Auto Place checked, we should auto place
+      for (var g = 0; g < stepImageGroups.length; g++) {
+        var group = stepImageGroups[g];
+        if (group.enableCheckbox.value && group.autoPlaceCheckbox.value) {
+          shouldAutoPlace = true;
+          break;
+        }
+      }
+    } else {
+      shouldAutoPlace = autoPlaceAndCenter;
+    }
+    if (shouldAutoPlace) {
+      // --- Progress Palette UI ---
+      var progressWin = new Window('palette', 'Placing Images...');
+      progressWin.orientation = 'column';
+      progressWin.alignChildren = 'center';
+      progressWin.spacing = 10;
+      var msgGroup = progressWin.add('group');
+      msgGroup.alignment = ['center', 'top'];
+      var msgText = msgGroup.add('statictext', undefined, 'Please be patient. This might take a while.');
+      msgText.justify = 'center';
+      msgText.graphics.font = ScriptUI.newFont(msgText.graphics.font.family, msgText.graphics.font.style, msgText.graphics.font.size + 1);
+      var iconGroup = progressWin.add('group');
+      iconGroup.alignment = ['center', 'top'];
+      var iconText = iconGroup.add('statictext', undefined, '\\');
+      iconText.characters = 2;
+      var progressText = progressWin.add('statictext', undefined, 'Processing...');
+      progressText.alignment = ['center', 'top'];
+      var cancelBtn = progressWin.add('button', undefined, 'Cancel');
+      var userCancelled = false;
+      cancelBtn.onClick = function() {
+        userCancelled = true;
+        progressText.text = 'Cancelling...';
+      };
+      progressWin.show();
+      // Animate for 1 second before starting (optional)
+      var delayStart = new Date().getTime();
+      var icons = ['|', '/', '-', '\\'];
+      var animIdx = 0;
+      while (new Date().getTime() - delayStart < 1000 && !userCancelled) {
+        iconText.text = icons[animIdx % 4];
+        progressWin.update();
+        animIdx++;
+        $.sleep(100);
+      }
       function inchesToPoints(val) { return parseFloat(val) * 72; }
       frameTopMargin = inchesToPoints(frameTopMargin);
       frameBottomMargin = inchesToPoints(frameBottomMargin);
@@ -805,337 +912,272 @@ function placeImagesOnDocumentPages() {
       horizontalGutter = inchesToPoints(horizontalGutter);
       verticalGutter = inchesToPoints(verticalGutter);
 
-      var totalImages = placementPlan.length;
-      var imgCounter = 0;
-      var pageIndex = 0;
-      var lastGroupIdx = -1;
-
-      while (imgCounter < totalImages) {
-        var page = pageIndex === 0 ? doc.pages[0] : doc.pages.add();
-
-        page.marginPreferences.top = pageTopMargin;
-        page.marginPreferences.bottom = pageBottomMargin;
-        page.marginPreferences.left = pageLeftMargin;
-        page.marginPreferences.right = pageRightMargin;
-
-        var pageBounds = page.bounds;
-        var pageTop = pageBounds[0];
-        var pageLeft = pageBounds[1];
-        var pageWidth = pageBounds[3] - pageBounds[1];
-        var pageHeight = pageBounds[2] - pageBounds[0];
-
-        var usableWidth = pageWidth - pageLeftMargin - pageRightMargin;
-        var usableHeight = pageHeight - pageTopMargin - pageBottomMargin;
-
-        var currentGroupIdx = placementPlan[imgCounter].groupIdx;
-        if (imgCounter > 0 && placementPlan[imgCounter].keepSeparate && currentGroupIdx !== lastGroupIdx) {
-          page = doc.pages.add();
-          pageIndex++;
-        }
-        lastGroupIdx = currentGroupIdx;
-
-        var plan = placementPlan[imgCounter];
-        var probeFile = File(plan.file);
-        var imgW = 0, imgH = 0;
-        if (probeFile.exists) {
-          var probeRect = page.rectangles.add({geometricBounds: [0,0,72,72]});
-          var probePlaced = probeRect.place(probeFile)[0];
-          var probeBounds = probePlaced.visibleBounds;
-          imgW = probeBounds[3] - probeBounds[1];
-          imgH = probeBounds[2] - probeBounds[0];
-          probePlaced.remove();
-          probeRect.remove();
-        }
-        if (imgW === 0 || imgH === 0) {
-          alert("Could not determine image size for grid calculation. Please check your images.");
-          return;
-        }
-        var best = {
-          rotation: plan.rotation,
-          frameW: imgW,
-          frameH: imgH,
-          columns: Math.floor((usableWidth + horizontalGutter) / (imgW + horizontalGutter)),
-          rows: Math.floor((usableHeight + verticalGutter) / (imgH + verticalGutter)),
-          count: Math.floor((usableWidth + horizontalGutter) / (imgW + horizontalGutter)) *
-                 Math.floor((usableHeight + verticalGutter) / (imgH + verticalGutter))
-        };
-
-        if (autoRotateBestFitCheckbox.value) {
-          var cols0 = Math.floor((usableWidth + horizontalGutter) / (imgW + horizontalGutter));
-          var rows0 = Math.floor((usableHeight + verticalGutter) / (imgH + verticalGutter));
-          var count0 = cols0 * rows0;
-          var cols90 = Math.floor((usableWidth + horizontalGutter) / (imgH + horizontalGutter));
-          var rows90 = Math.floor((usableHeight + verticalGutter) / (imgW + verticalGutter));
-          var count90 = cols90 * rows90;
-          if (count90 > count0) {
-            best = {
-              rotation: 90,
-              frameW: imgH,
-              frameH: imgW,
-              columns: cols90,
-              rows: rows90,
-              count: count90
-            };
-          } else {
-            best = {
-              rotation: 0,
-              frameW: imgW,
-              frameH: imgH,
-              columns: cols0,
-              rows: rows0,
-              count: count0
-            };
+      // --- GROUP PLACEMENT LOGIC ---
+      if (enableStepGroupsCheckbox.value) {
+        for (var g = 0; g < stepGroups.length; g++) {
+          var groupFiles = groupImageFilesFiltered[g];
+          if (!groupFiles || groupFiles.length === 0) continue;
+          // Probe all images for their dimensions
+          var sizeMap = {};
+          var sizeOrder = [];
+          for (var i = 0; i < groupFiles.length; i++) {
+            var f = File(groupFiles[i]);
+            if (!f.exists) continue;
+            var probeRect = doc.pages[0].rectangles.add({geometricBounds: [0,0,72,72]});
+            var probePlaced = probeRect.place(f)[0];
+            var bounds = probePlaced.visibleBounds;
+            var w = bounds[3] - bounds[1];
+            var h = bounds[2] - bounds[0];
+            probePlaced.remove();
+            probeRect.remove();
+            var key = w.toFixed(2) + 'x' + h.toFixed(2);
+            if (!sizeMap[key]) {
+              sizeMap[key] = [];
+              sizeOrder.push(key);
+            }
+            sizeMap[key].push({file: f, width: w, height: h});
           }
-        }
-
-        if (best.columns < 1 || best.rows < 1 || best.count < 1) {
-          alert("Could not fit any images on the page with the current margins. Please reduce margins or use smaller images.");
-          return;
-        }
-
-        var gridWidth = best.columns * best.frameW + (best.columns - 1) * horizontalGutter;
-        var gridHeight = best.rows * best.frameH + (best.rows - 1) * verticalGutter;
-
-        var startX = pageLeft + pageLeftMargin + (usableWidth - gridWidth) / 2;
-        var startY = pageTop + pageTopMargin + (usableHeight - gridHeight) / 2;
-
-        var frames = [];
-var placedOnThisPage = 0;
-for (var i = 0; i < best.count && imgCounter < totalImages; i++) {
-  var row = Math.floor(i / best.columns);
-  var col = i % best.columns;
-  var x1 = startX + col * (best.frameW + horizontalGutter);
-  var y1 = startY + row * (best.frameH + verticalGutter);
-  var x2 = x1 + best.frameW;
-  var y2 = y1 + best.frameH;
-  if (x2 > pageLeft + pageWidth - pageRightMargin + 0.01 || y2 > pageTop + pageHeight - pageBottomMargin + 0.01) {
-    continue;
-  }
-  var plan = placementPlan[imgCounter];
-  var imageFile = File(plan.file);
-  if (imageFile.exists) {
-    // Place the frame at the intended position and size (unrotated)
-    var frame = page.rectangles.add({
-      geometricBounds: [y1, x1, y2, x2],
-      strokeWeight: 1,
-      strokeColor: doc.swatches.itemByName("None")
-    });
-
-    // Place the image and auto-rotate for best fit
-    var placedImage = frame.place(imageFile)[0];
-    if (enableFitting) {
-      if (fittingOption === "Content-Aware") {
-        frame.fit(FitOptions.CONTENT_AWARE_FIT);
-      } else if (fittingOption === "Proportional") {
-        frame.fit(FitOptions.FILL_PROPORTIONALLY);
-      }
-    }
-    // If best.rotation is 90, rotate the image inside the frame
-    if (best.rotation === 90) {
-      placedImage.absoluteRotationAngle = 90;
-      frame.fit(FitOptions.CENTER_CONTENT);
-    } else {
-      frame.fit(FitOptions.CENTER_CONTENT);
-    }
-    frame.locked = false;
-    frames.push(frame);
-  }
-  imgCounter++;
-  placedOnThisPage++;
-  if (plan.keepSeparate && placedOnThisPage === best.count) {
-    break;
-  }
-}
-
-// Group, center, ungroup
-if (frames.length > 0) {
-  var group = page.groups.add(frames);
-  var groupBounds = group.visibleBounds;
-  var groupWidth = groupBounds[3] - groupBounds[1];
-  var groupHeight = groupBounds[2] - groupBounds[0];
-  var groupCenterX = groupBounds[1] + groupWidth / 2;
-  var groupCenterY = groupBounds[0] + groupHeight / 2;
-  var usableCenterX = pageLeft + pageLeftMargin + usableWidth / 2;
-  var usableCenterY = pageTop + pageTopMargin + usableHeight / 2;
-  var dx = usableCenterX - groupCenterX;
-  var dy = usableCenterY - groupCenterY;
-  group.move([groupBounds[1] + dx, groupBounds[0] + dy]);
-  group.ungroup();
-}
-
-        if (doCropMarks && frames.length > 0) {
-          app.select(frames);
-          drawCropMarks_OuterOnly(
-            cropMarkRange,
-            true,
-            cropMarkLength,
-            cropMarkOffset,
-            cropMarkWidth,
-            bleedOffset
-          );
-        }
-        pageIndex++;
-      }
-      alert("All images placed successfully!");
-      return;
-    }
+          // For each unique size group, create pages as needed
+          for (var s = 0; s < sizeOrder.length; s++) {
+            var key = sizeOrder[s];
+            var images = sizeMap[key];
+            var imgW = images[0].width;
+            var imgH = images[0].height;
+            // Calculate how many fit per page
+            var usableWidth = doc.documentPreferences.pageWidth - pageLeftMargin - pageRightMargin;
+            var usableHeight = doc.documentPreferences.pageHeight - pageTopMargin - pageBottomMargin;
+            var cols = Math.max(1, Math.floor((usableWidth + horizontalGutter) / (imgW + horizontalGutter)));
+            var rows = Math.max(1, Math.floor((usableHeight + verticalGutter) / (imgH + verticalGutter)));
+            var perPage = rows * cols;
+            var placed = 0;
+            var lastAnimTime = new Date().getTime();
+            var animIdxLocal = 0;
+            while (placed < images.length) {
+              var page = (g === 0 && s === 0 && placed === 0) ? doc.pages[0] : doc.pages.add();
+              page.marginPreferences.top = pageTopMargin;
+              page.marginPreferences.bottom = pageBottomMargin;
+              page.marginPreferences.left = pageLeftMargin;
+              page.marginPreferences.right = pageRightMargin;
+              var start = placed;
+              var end = Math.min(placed + perPage, images.length);
+              var numThisPage = end - start;
+              // Always use full grid for centering
+              var rowsThisPage = rows;
+              var colsThisPage = cols;
+              var gridWidth = colsThisPage * imgW + (colsThisPage - 1) * horizontalGutter;
+              var gridHeight = rowsThisPage * imgH + (rowsThisPage - 1) * verticalGutter;
+              var usableWidth = doc.documentPreferences.pageWidth - pageLeftMargin - pageRightMargin;
+              var usableHeight = doc.documentPreferences.pageHeight - pageTopMargin - pageBottomMargin;
+              var xOffset = pageLeftMargin + (usableWidth - gridWidth) / 2;
+              var yOffset = pageTopMargin + (usableHeight - gridHeight) / 2;
+              var frames = [];
+              for (var relIdx = 0; relIdx < perPage; relIdx++) {
+                var row = Math.floor(relIdx / cols);
+                var col = relIdx % cols;
+                var x1 = xOffset + col * (imgW + horizontalGutter);
+                var y1 = yOffset + row * (imgH + verticalGutter);
+                var x2 = x1 + imgW;
+                var y2 = y1 + imgH;
+                var frame = null;
+                try {
+                  frame = page.rectangles.add({geometricBounds: [y1, x1, y2, x2]});
+                } catch (e) {
+                  frame = null;
+                }
+                if (frame && frame.isValid) {
+                  // Place image if available
+                  if (relIdx < numThisPage) {
+                    try {
+                      frame.place(images[start + relIdx].file);
+                    } catch (e) {}
+                  }
+                  frames.push(frame);
+                }
+                // --- Progress indicator update every 3 seconds ---
+                var now = new Date().getTime();
+                if (now - lastAnimTime >= 3000) {
+                  iconText.text = icons[animIdxLocal % 4];
+                  animIdxLocal++;
+                  progressText.text = 'Placing images... (' + (placed + relIdx + 1) + ' of ' + images.length + ')';
+                  progressWin.update();
+                  lastAnimTime = now;
+                }
+                if (userCancelled) {
+                  alert('Operation cancelled by user.');
+                  progressWin.close();
+                  throw new Error('User cancelled');
+                }
+              }
+              // --- Only select valid, placed frames for crop marks ---
+              if (doCropMarks && frames.length > 0) {
+                var placedFrames = frames.slice(0, numThisPage);
+                var validFrames = [];
+                for (var i = 0; i < placedFrames.length; i++) {
+                  try {
+                    if (placedFrames[i] && placedFrames[i].isValid) validFrames.push(placedFrames[i]);
+                  } catch (e) {}
+                }
+                if (validFrames.length > 0) {
+                  app.select(validFrames);
+                  drawCropMarks_OuterOnly(
+                    cropMarkRange, // myRange
+                    doCropMarks,   // myDoCropMarks
+                    cropMarkLength, // myCropMarkLength
+                    cropMarkOffset, // myCropMarkOffset
+                    cropMarkWidth,  // myCropMarkWidth
+                    bleedOffset     // bleedOffset
+                  );
+                }
+              }
+              // Delete empty frames (those without images)
+              for (var f = numThisPage; f < frames.length; f++) {
+                try {
+                  if (frames[f] && frames[f].isValid) frames[f].remove();
+                } catch (e) {}
+              }
+              placed += numThisPage;
+            } // <-- Close while (placed < images.length)
+          } // <-- Close for (var s = 0; s < sizeOrder.length; s++)
+        } // <-- Close for (var g = 0; g < stepGroups.length; g++)
+        alert('All group images placed successfully!');
+        return;
+      } // closes if (enableStepGroupsCheckbox.value)
+    } // closes if (shouldAutoPlace)
 
     // --- MANUAL LOGIC (unchanged) ---
     // (You can add your manual grid logic here if needed.)
-
   } catch (e) {
     alert("An error occurred while placing images: " + e.message);
-  
+  } finally {
+    // Always restore measurement units to inches (points) after script runs
+    try {
+      app.activeDocument.viewPreferences.horizontalMeasurementUnits = MeasurementUnits.INCHES;
+      app.activeDocument.viewPreferences.verticalMeasurementUnits = MeasurementUnits.INCHES;
+    } catch (e) {
+      // If no document is open, do nothing
+    }
   }
-}
 
-// --- Crop marks logic with bleed support ---
-function drawCropMarks_OuterOnly(myRange, myDoCropMarks, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, bleedOffset) {
-  var myDocument = app.activeDocument;
-  var myOldRulerOrigin = myDocument.viewPreferences.rulerOrigin;
-  myDocument.viewPreferences.rulerOrigin = RulerOrigin.spreadOrigin;
-  var myOldXUnits = myDocument.viewPreferences.horizontalMeasurementUnits;
-  var myOldYUnits = myDocument.viewPreferences.verticalMeasurementUnits;
-  myDocument.viewPreferences.horizontalMeasurementUnits = MeasurementUnits.points;
-  myDocument.viewPreferences.verticalMeasurementUnits = MeasurementUnits.points;
-  var myLayer = myDocument.layers.item("myCropMarks");
-  try { var myLayerName = myLayer.name; }
-  catch (myError) { myLayer = myDocument.layers.add({ name: "myCropMarks" }); }
-  var myRegistrationColor = myDocument.colors.item("Registration");
-  var myNoneSwatch = myDocument.swatches.item("None");
-
-  var allBounds = [];
-  for (var i = 0; i < app.selection.length; i++) {
-    allBounds.push(app.selection[i].visibleBounds);
-  }
-  var tolerance = 0.5; // points
-
-  for (var myCounter = 0; myCounter < app.selection.length; myCounter++) {
-    var myObject = app.selection[myCounter];
-    var b = myObject.visibleBounds; // [y1, x1, y2, x2]
-    var y1 = b[0], x1 = b[1], y2 = b[2], x2 = b[3];
-
-    if (myRange == 0) { // Each Object
-      if (myDoCropMarks == true) {
+  // --- Crop marks logic: MyCropMarks (integrated) ---
+  function drawCropMarks_OuterOnly(myRange, myDoCropMarks, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, bleedOffset) {
+    if (!myDoCropMarks) return;
+    var doc = app.activeDocument;
+    var oldRulerOrigin = doc.viewPreferences.rulerOrigin;
+    var oldXUnits = doc.viewPreferences.horizontalMeasurementUnits;
+    var oldYUnits = doc.viewPreferences.verticalMeasurementUnits;
+    doc.viewPreferences.rulerOrigin = RulerOrigin.spreadOrigin;
+    doc.viewPreferences.horizontalMeasurementUnits = MeasurementUnits.points;
+    doc.viewPreferences.verticalMeasurementUnits = MeasurementUnits.points;
+    // Ensure crop marks layer exists and is unlocked/visible
+    var cropLayer;
+    try {
+      cropLayer = doc.layers.item("myCropMarks");
+      var _ = cropLayer.name; // force error if doesn't exist
+    } catch (e) {
+      cropLayer = doc.layers.add({ name: "myCropMarks" });
+    }
+    cropLayer.locked = false;
+    cropLayer.visible = true;
+    var regColor = doc.colors.item("Registration");
+    var noneSwatch = doc.swatches.item("None");
+    var selection = app.selection;
+    if (!selection || selection.length === 0) return;
+    var allBounds = [];
+    for (var i = 0; i < selection.length; i++) {
+      if (selection[i] && selection[i].isValid) allBounds.push(selection[i].visibleBounds);
+    }
+    var tolerance = 0.5;
+    for (var i = 0; i < selection.length; i++) {
+      var obj = selection[i];
+      if (!obj || !obj.isValid) continue;
+      var b = obj.visibleBounds;
+      var y1 = b[0], x1 = b[1], y2 = b[2], x2 = b[3];
+      if (myRange == 0) { // Each Object
         var topOuter = isEdgeOuter(b, allBounds, "top", tolerance);
         var bottomOuter = isEdgeOuter(b, allBounds, "bottom", tolerance);
         var leftOuter = isEdgeOuter(b, allBounds, "left", tolerance);
         var rightOuter = isEdgeOuter(b, allBounds, "right", tolerance);
-
-        // --- EDGES: Draw original and two parallel bleed marks (offset perpendicular to mark) ---
+        // Top
         if (topOuter) {
-          myDrawLine([y1 - myCropMarkOffset, x1, y1 - (myCropMarkOffset + myCropMarkLength), x1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x2, y1 - (myCropMarkOffset + myCropMarkLength), x2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x1 - bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x1 - bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x2 + bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x2 + bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
+          myDrawLine([y1 - myCropMarkOffset, x1, y1 - (myCropMarkOffset + myCropMarkLength), x1], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y1 - myCropMarkOffset, x2, y1 - (myCropMarkOffset + myCropMarkLength), x2], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y1 - myCropMarkOffset, x1 - bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x1 - bleedOffset], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y1 - myCropMarkOffset, x2 + bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x2 + bleedOffset], myCropMarkWidth, regColor, noneSwatch, cropLayer);
         }
+        // Bottom
         if (bottomOuter) {
-          myDrawLine([y2 + myCropMarkOffset, x1, y2 + myCropMarkOffset + myCropMarkLength, x1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x2, y2 + myCropMarkOffset + myCropMarkLength, x2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x1 - bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x1 - bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x2 + bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x2 + bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
+          myDrawLine([y2 + myCropMarkOffset, x1, y2 + myCropMarkOffset + myCropMarkLength, x1], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2 + myCropMarkOffset, x2, y2 + myCropMarkOffset + myCropMarkLength, x2], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2 + myCropMarkOffset, x1 - bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x1 - bleedOffset], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2 + myCropMarkOffset, x2 + bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x2 + bleedOffset], myCropMarkWidth, regColor, noneSwatch, cropLayer);
         }
+        // Left
         if (leftOuter) {
-          myDrawLine([y1, x1 - myCropMarkOffset, y1, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2, x1 - myCropMarkOffset, y2, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - bleedOffset, x1 - myCropMarkOffset, y1 - bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + bleedOffset, x1 - myCropMarkOffset, y2 + bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
+          myDrawLine([y1, x1 - myCropMarkOffset, y1, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2, x1 - myCropMarkOffset, y2, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y1 - bleedOffset, x1 - myCropMarkOffset, y1 - bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2 + bleedOffset, x1 - myCropMarkOffset, y2 + bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, regColor, noneSwatch, cropLayer);
         }
+        // Right
         if (rightOuter) {
-          myDrawLine([y1, x2 + myCropMarkOffset, y1, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2, x2 + myCropMarkOffset, y2, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - bleedOffset, x2 + myCropMarkOffset, y1 - bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + bleedOffset, x2 + myCropMarkOffset, y2 + bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
+          myDrawLine([y1, x2 + myCropMarkOffset, y1, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2, x2 + myCropMarkOffset, y2, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y1 - bleedOffset, x2 + myCropMarkOffset, y1 - bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, regColor, noneSwatch, cropLayer);
+          myDrawLine([y2 + bleedOffset, x2 + myCropMarkOffset, y2 + bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, regColor, noneSwatch, cropLayer);
         }
-
-        // --- CORNERS: Draw original and bleed mark (offset only y for left/right sides, only x for top/bottom sides) ---
-        if (topOuter && leftOuter) {
-          myDrawLine([y1, x1 - myCropMarkOffset, y1, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 + bleedOffset, x1 - myCropMarkOffset, y1 + bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x1, y1 - (myCropMarkOffset + myCropMarkLength), x1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x1 + bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x1 + bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-        }
-        if (topOuter && rightOuter) {
-          myDrawLine([y1, x2 + myCropMarkOffset, y1, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 + bleedOffset, x2 + myCropMarkOffset, y1 + bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x2, y1 - (myCropMarkOffset + myCropMarkLength), x2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y1 - myCropMarkOffset, x2 - bleedOffset, y1 - (myCropMarkOffset + myCropMarkLength), x2 - bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-        }
-        if (bottomOuter && leftOuter) {
-          myDrawLine([y2, x1 - myCropMarkOffset, y2, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 - bleedOffset, x1 - myCropMarkOffset, y2 - bleedOffset, x1 - (myCropMarkOffset + myCropMarkLength)], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x1, y2 + myCropMarkOffset + myCropMarkLength, x1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x1 + bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x1 + bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-        }
-        if (bottomOuter && rightOuter) {
-          myDrawLine([y2, x2 + myCropMarkOffset, y2, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 - bleedOffset, x2 + myCropMarkOffset, y2 - bleedOffset, x2 + myCropMarkOffset + myCropMarkLength], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x2, y2 + myCropMarkOffset + myCropMarkLength, x2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-          myDrawLine([y2 + myCropMarkOffset, x2 - bleedOffset, y2 + myCropMarkOffset + myCropMarkLength, x2 - bleedOffset], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-        }
-      }
-    } else { // Entire Selection (bounding box)
-      if (myCounter == 0) {
+      } else if (myRange != 0 && i == 0) { // Entire selection bounding box (only once)
         var myX1 = x1, myY1 = y1, myX2 = x2, myY2 = y2;
-      } else {
-        if (y1 < myY1) myY1 = y1;
-        if (x1 < myX1) myX1 = x1;
-        if (y2 > myY2) myY2 = y2;
-        if (x2 > myX2) myX2 = x2;
+        for (var j = 1; j < selection.length; j++) {
+          var bb = selection[j].visibleBounds;
+          if (bb[0] < myY1) myY1 = bb[0];
+          if (bb[1] < myX1) myX1 = bb[1];
+          if (bb[2] > myY2) myY2 = bb[2];
+          if (bb[3] > myX2) myX2 = bb[3];
+        }
+        myDrawCropMarks(myX1, myY1, myX2, myY2, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, regColor, noneSwatch, cropLayer);
+        myDrawCropMarks(myX1 - bleedOffset, myY1 - bleedOffset, myX2 + bleedOffset, myY2 + bleedOffset, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, regColor, noneSwatch, cropLayer);
+        myDrawCropMarks(myX1 + bleedOffset, myY1 + bleedOffset, myX2 - bleedOffset, myY2 - bleedOffset, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, regColor, noneSwatch, cropLayer);
       }
     }
+    doc.viewPreferences.rulerOrigin = oldRulerOrigin;
+    doc.viewPreferences.horizontalMeasurementUnits = oldXUnits;
+    doc.viewPreferences.verticalMeasurementUnits = oldYUnits;
   }
-  if (myRange != 0) {
-    if (myDoCropMarks == true) {
-      myDrawCropMarks(myX1, myY1, myX2, myY2, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-      myDrawCropMarks(myX1 - bleedOffset, myY1 - bleedOffset, myX2 + bleedOffset, myY2 + bleedOffset, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-      myDrawCropMarks(myX1 + bleedOffset, myY1 + bleedOffset, myX2 - bleedOffset, myY2 - bleedOffset, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-    }
+  function myDrawLine(bounds, strokeWeight, color, swatch, layer) {
+    var line = app.activeWindow.activePage.graphicLines.add({
+      geometricBounds: bounds,
+      strokeWeight: strokeWeight,
+      strokeColor: color,
+      itemLayer: layer
+    });
+    return line;
   }
-  myDocument.viewPreferences.rulerOrigin = myOldRulerOrigin;
-  myDocument.viewPreferences.horizontalMeasurementUnits = myOldXUnits;
-  myDocument.viewPreferences.verticalMeasurementUnits = myOldYUnits;
-}
-
-function isEdgeOuter(myBounds, allBounds, edge, tolerance) {
-  for (var i = 0; i < allBounds.length; i++) {
-    var other = allBounds[i];
-    if (other === myBounds) continue;
-    if (edge === "top" && Math.abs(myBounds[0] - other[2]) < tolerance &&
-      myBounds[1] < other[3] && myBounds[3] > other[1]) {
-      return false;
-    }
-    if (edge === "bottom" && Math.abs(myBounds[2] - other[0]) < tolerance &&
-      myBounds[1] < other[3] && myBounds[3] > other[1]) {
-      return false;
-    }
-    if (edge === "left" && Math.abs(myBounds[1] - other[3]) < tolerance &&
-      myBounds[0] < other[2] && myBounds[2] > other[0]) {
-      return false;
-    }
-    if (edge === "right" && Math.abs(myBounds[3] - other[1]) < tolerance &&
-      myBounds[0] < other[2] && myBounds[2] > other[0]) {
-      return false;
-    }
+  function myDrawCropMarks(x1, y1, x2, y2, len, offset, width, color, swatch, layer) {
+    // Top
+    myDrawLine([y1 - offset, x1, y1 - (offset + len), x1], width, color, swatch, layer);
+    myDrawLine([y1 - offset, x2, y1 - (offset + len), x2], width, color, swatch, layer);
+    // Bottom
+    myDrawLine([y2 + offset, x1, y2 + offset + len, x1], width, color, swatch, layer);
+    myDrawLine([y2 + offset, x2, y2 + offset + len, x2], width, color, swatch, layer);
+    // Left
+    myDrawLine([y1, x1 - offset, y1, x1 - (offset + len)], width, color, swatch, layer);
+    myDrawLine([y2, x1 - offset, y2, x1 - (offset + len)], width, color, swatch, layer);
+    // Right
+    myDrawLine([y1, x2 + offset, y1, x2 + offset + len], width, color, swatch, layer);
+    myDrawLine([y2, x2 + offset, y2, x2 + offset + len], width, color, swatch, layer);
   }
-  return true;
-}
+  function isEdgeOuter(bounds, allBounds, edge, tolerance) {
+    var y1 = bounds[0], x1 = bounds[1], y2 = bounds[2], x2 = bounds[3];
+    for (var i = 0; i < allBounds.length; i++) {
+      var b = allBounds[i];
+      if (edge === "top" && Math.abs(y1 - b[2]) < tolerance && x1 < b[3] && x2 > b[1]) return false;
+      if (edge === "bottom" && Math.abs(y2 - b[0]) < tolerance && x1 < b[3] && x2 > b[1]) return false;
+      if (edge === "left" && Math.abs(x1 - b[3]) < tolerance && y1 < b[2] && y2 > b[0]) return false;
+      if (edge === "right" && Math.abs(x2 - b[1]) < tolerance && y1 < b[2] && y2 > b[0]) return false;
+    }
+    return true;
+  }
 
-function myDrawCropMarks(myX1, myY1, myX2, myY2, myCropMarkLength, myCropMarkOffset, myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer) {
-  myDrawLine([myY1 - myCropMarkOffset, myX1, myY1 - (myCropMarkOffset + myCropMarkLength), myX1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-  myDrawLine([myY2 + myCropMarkOffset, myX1, myY2 + myCropMarkOffset + myCropMarkLength, myX1], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-  myDrawLine([myY1 - myCropMarkOffset, myX2, myY1 - (myCropMarkOffset + myCropMarkLength), myX2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-  myDrawLine([myY2 + myCropMarkOffset, myX2, myY2 + myCropMarkOffset + myCropMarkLength, myX2], myCropMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
-}
+} // <-- Properly close placeImagesOnDocumentPages
 
-function myDrawLine(myBounds, myStrokeWeight, myRegistrationColor, myNoneSwatch, myLayer) {
-  app.activeWindow.activeSpread.graphicLines.add(myLayer, undefined, undefined, {
-    strokeWeight: myStrokeWeight,
-    fillColor: myNoneSwatch,
-    strokeColor: myRegistrationColor,
-    geometricBounds: myBounds
-  });
-}
-
-// Run the script
 placeImagesOnDocumentPages();
